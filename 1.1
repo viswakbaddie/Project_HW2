@@ -1,0 +1,61 @@
+from machine import UART, Pin, I2C, Timer, ADC
+from ssd1306 import SSD1306_I2C
+import time
+
+
+sw2 = Pin(7, Pin.IN, Pin.PULL_UP)
+sw0 = Pin(9, Pin.IN, Pin.PULL_UP)
+i2c = I2C(1, scl=Pin(15), sda=Pin(14), freq=400000)
+oled_width = 128
+oled_height = 64
+oled = SSD1306_I2C(oled_width, oled_height, i2c)
+
+x = 50
+y = 57
+colour = 1
+
+oled.fill(0)
+oled.text('<=>', x, y, colour)
+oled.show()
+def right(x):
+    if x < 100:
+        x = x + 10
+    else:
+        x = 100
+    return x
+def left(x):
+    if x == 0:
+        x = 0
+    else:
+        x = x - 10
+    return x
+
+while True:
+    while sw0() and sw2() == 1:
+        time.sleep(0.05)
+    
+    if sw2() == 0:
+        time.sleep(0.25)
+        oled.fill(0)
+        x = right(x)
+        oled.text('<=>', x, y, colour)
+        oled.show()
+
+    if sw0() == 0:
+        time.sleep(0.25)
+        oled.fill(0)
+        x = left(x)
+        oled.text('<=>', x, y, colour)
+        oled.show()
+    
+
+
+
+
+
+
+    
+        
+        
+        
+    

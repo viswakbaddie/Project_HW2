@@ -1,0 +1,63 @@
+import time
+from ssd1306 import SSD1306_I2C
+from machine import UART, Pin, I2C
+from filefifo import Filefifo
+from fifo import Fifo
+
+# Initialize filefifo
+data_fifo = Filefifo(10, name="capture_250Hz_01.txt")
+
+# Constants
+frequency = 250
+sample_time = 2
+
+# Variables
+prev_value = 0
+slope = 0
+prev_slope = 0
+samples = 0
+sample_list = []
+min_list = []
+max_list = []
+
+# Collect samples
+while True:
+    value = data_fifo.get()
+    samples += 1
+    current_slope = value - prev_value
+    
+    # Detect peaks and valleys
+    if current_slope <= 0 and prev_slope > 0:
+        sample_list.append(samples)
+        samples = 0
+        max_list.append(prev_value)
+    if current_slope >= 0 and prev_slope < 0:
+        min_list.append(prev_value)
+
+    # Check if enough samples collected
+    if (samples + sum(sample_list)) >= (sample_time * frequency):
+        break
+    
+    prev_value = value
+    prev_slope = current_slope
+
+# Calculate min and max values
+min_list.sort()
+max_list.sort()
+min_val = min_list[0]
+max_val = max_list[-1]
+
+# Calculate scaler and shifters
+scaler = (max_val - min_val) / (100 - 0)
+shifter1 = min_val / scaler - 0
+shifter2 = max_val / scaler - 100
+
+# Normalize and print values
+while True:
+    value = data_fifo.get()
+    if sample_time >= 10:
+        break
+    normalized_value = (value / scaler) - shifter1
+    print(normalized_value)
+    if normalized_value == 100:
+        sample_time += 1

@@ -1,65 +1,56 @@
-import time
-from ssd1306 import SSD1306_I2C
-from machine import UART, Pin, I2C
 from filefifo import Filefifo
-from fifo import Fifo
-from led import Led
-
-data = Filefifo(20, name = "capture02_250Hz.txt")
-
-frequency = 250
-prev_value = 0
-slope = 0
-prev_slope = 0
-samples = 0
-sample_list = []
-sample_time = 2
-min_list = []
-max_list = []
 
 
-prev_value = 0
-samples = 0
-rising = False
-start_count = False
-sample_list = []
-frq = 250
-current_slope = 0
-prev_slope = 0
+data = Filefifo(10, name = 'capture02_250Hz.txt')
+
+sample_max = float('-inf')
+sample_min = float('inf')
+
+t = 0
+while t < 2:
+    t += 0.004
+    
+    sample = data.get()
+    
+    if sample > sample_max:
+        sample_max = sample
+        
+    elif sample < sample_min:
+        sample_min = sample
+
+
+threshold = (sample_max + sample_min) / 2
+peak = False
+
+i           = 0
+limit       = 0 # To limit the BPM outputs
+prev_slope  = 0
+prev_sample = data.get()
 
 while True:
-    value = data.get()
-    samples += 1
-    current_slope = value - prev_value
-    if current_slope <= 0 and prev_slope > 0:
-        sample_list.append(samples)
-        samples = 0
-        max_list.append(prev_value)
+    if peak:
+        i += 1
 
-    if current_slope >= 0 and prev_slope < 0:
-            min_list.append(prev_value)
+    sample = data.get()
+    slope = (sample - prev_sample) / 0.004
+    if slope == 0:
+        prev_sample = sample
+        continue
 
+    if (prev_slope * slope < 0) and (prev_slope > 0) and (sample > threshold):
+        if peak:
+            bpm = 60 / ((4 * i) / 1000)
+            if 30 < bpm < 200:
+                print(bpm)
 
-    if [samples + sum(sample_list)] >= [sample_time * frequency]:
-        break
+                if limit > 20:
+                    break
+                limit += 1
 
-    if current_slope >= 0 and prev_slope < 0:
-            min_list.append(prev_value)
+            i = 0
+            peak = False
+        else:
+            peak = True
 
-        
-
-    
-    prev_value = value
-    prev_slope = current_slope
-
-
-    
-print(sample_list)
-
-average_samples = sum(sample_list)//len(sample_list)
-        
-sample_time = (1/frq) * average_samples   
-print(sample_time)
-        
-frq_samples = 1/sample_time        
-print(frq_samples)
+    prev_slope  = slope
+    prev_sample = sample
